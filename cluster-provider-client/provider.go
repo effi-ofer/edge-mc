@@ -20,7 +20,10 @@ func GetProviderClient(providerType v1alpha1apis.ClusterProviderType, providerNa
 		switch providerType {
 		case v1alpha1apis.KindProviderType:
 			newProvider = kindprovider.New(providerName)
+			// TODO: support deleting a provider from the list
 			ProviderList[key] = newProvider
+			i, _ := newProvider.Watch()
+			i.ResultChan()
 		default:
 			panic("unknown provider type")
 		}
