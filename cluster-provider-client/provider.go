@@ -3,6 +3,9 @@ package clusterproviderclient
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/klog/v2"
+
 	clusterprovider "github.com/kcp-dev/edge-mc/cluster-provider-client/cluster"
 	kindprovider "github.com/kcp-dev/edge-mc/cluster-provider-client/kind"
 	v1alpha1apis "github.com/kcp-dev/edge-mc/pkg/apis/logicalcluster/v1alpha1"
@@ -11,7 +14,8 @@ import (
 var ProviderList map[string]ProviderClient
 
 // ES: return and error and don't panic, move push to outside the case
-func GetProviderClient(providerType v1alpha1apis.ClusterProviderType, providerName string) ProviderClient {
+func GetProviderClient(ctx context.Context, providerType v1alpha1apis.ClusterProviderType, providerName string) ProviderClient {
+	logger := klog.FromContext(ctx)
 	key := string(providerType) + "-" + providerName
 	newProvider, exists := ProviderList[key]
 	if !exists {
@@ -20,8 +24,26 @@ func GetProviderClient(providerType v1alpha1apis.ClusterProviderType, providerNa
 			newProvider = kindprovider.New(providerName)
 			// TODO: support deleting a provider from the list
 			ProviderList[key] = newProvider
-			i, _ := newProvider.Watch()
-			i.ResultChan()
+			w, _ := newProvider.Watch()
+			go func() {
+				for {
+					event, ok := <-w.ResultChan()
+					if !ok {
+						w.Stop()
+						logger.Info("stopping")
+						return
+					}
+					switch event.Type {
+					case watch.Added:
+						logger.Info("watch.added")
+					case watch.Deleted:
+						logger.Info("watch.deleted")
+					default:
+						// Unknown!
+						logger.Info("unknown event")
+					}
+				}
+			}()
 		default:
 			panic("unknown provider type")
 		}

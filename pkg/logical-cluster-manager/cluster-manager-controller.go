@@ -160,7 +160,7 @@ func (c *Controller) processAdd(ctx context.Context, key any) error {
 
 	// TODO: we have yet to finalize the fields in the provider,
 	// so likely this one liner will expend in the future.
-	provider := clusterproviderclient.GetProviderClient(providerInfo.Spec.ProviderType, newClusterConfig.Spec.ClusterProviderDesc)
+	provider := clusterproviderclient.GetProviderClient(ctx, providerInfo.Spec.ProviderType, newClusterConfig.Spec.ClusterProviderDesc)
 
 	// Update status to NotReady
 	newClusterConfig.Status.Phase = logicalcluster.LogicalClusterPhaseNotReady
@@ -220,7 +220,7 @@ func (c *Controller) processDelete(ctx context.Context, key any) error {
 		return err
 	}
 
-	provider := clusterproviderclient.GetProviderClient(providerInfo.Spec.ProviderType, delClusterConfig.Spec.ClusterProviderDesc)
+	provider := clusterproviderclient.GetProviderClient(ctx, providerInfo.Spec.ProviderType, delClusterConfig.Spec.ClusterProviderDesc)
 	err = provider.Delete(ctx, clusterName, opts)
 	if err != nil {
 		logger.Error(err, "failed to delete cluster")
