@@ -3,8 +3,6 @@ package clusterproviderclient
 import (
 	"context"
 
-	"sigs.k8s.io/logical-cluster"
-
 	clusterprovider "github.com/kcp-dev/edge-mc/cluster-provider-client/cluster"
 	kindprovider "github.com/kcp-dev/edge-mc/cluster-provider-client/kind"
 	v1alpha1apis "github.com/kcp-dev/edge-mc/pkg/apis/logicalcluster/v1alpha1"
@@ -20,7 +18,10 @@ func GetProviderClient(providerType v1alpha1apis.ClusterProviderType, providerNa
 		switch providerType {
 		case v1alpha1apis.KindProviderType:
 			newProvider = kindprovider.New(providerName)
+			// TODO: support deleting a provider from the list
 			ProviderList[key] = newProvider
+			i, _ := newProvider.Watch()
+			i.ResultChan()
 		default:
 			panic("unknown provider type")
 		}
@@ -36,13 +37,13 @@ func GetProviderClient(providerType v1alpha1apis.ClusterProviderType, providerNa
 // Example:
 // ES: add example, remove list() add Get()
 type ProviderClient interface {
-	Create(ctx context.Context, name logical.Name, opts clusterprovider.Options) (clusterprovider.LogicalClusterInfo, error)
-	Delete(ctx context.Context, name logical.Name, opts clusterprovider.Options) error
+	Create(ctx context.Context, name string, opts clusterprovider.Options) (clusterprovider.LogicalClusterInfo, error)
+	Delete(ctx context.Context, name string, opts clusterprovider.Options) error
 
 	// List returns a list of logical clusters.
 	// This method is used to discover the initial set of logical clusters
 	// and to refresh the list of logical clusters periodically.
-	List() ([]logical.Name, error)
+	List() ([]string, error)
 
 	// Watch returns a Watcher that watches for changes to a list of logical clusters
 	// and react to potential changes.

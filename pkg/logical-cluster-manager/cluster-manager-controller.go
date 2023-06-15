@@ -12,13 +12,12 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
-	"sigs.k8s.io/logical-cluster"
 
 	clusterproviderclient "github.com/kcp-dev/edge-mc/cluster-provider-client"
 	cluster "github.com/kcp-dev/edge-mc/cluster-provider-client/cluster"
-	lcv1alpha1apis "github.com/kcp-dev/edge-mc/pkg/apis/logicalcluster/v1alpha1"
+	logicalcluster "github.com/kcp-dev/edge-mc/pkg/apis/logicalcluster/v1alpha1"
 	edgeclient "github.com/kcp-dev/edge-mc/pkg/client/clientset/versioned"
-	lcclient "github.com/kcp-dev/edge-mc/pkg/client/informers/externalversions/logicalcluster/v1alpha1"
+	lcinformer "github.com/kcp-dev/edge-mc/pkg/client/informers/externalversions/logicalcluster/v1alpha1"
 )
 
 const controllerName = "cluster-manager"
@@ -40,7 +39,7 @@ type Controller struct {
 	kubeconfig       *string
 	ctx              context.Context
 	clusterclientset edgeclient.Interface
-	clusterInformer  lcclient.LogicalClusterInformer
+	clusterInformer  lcinformer.LogicalClusterInformer
 	queue            workqueue.RateLimitingInterface
 }
 
@@ -48,7 +47,7 @@ func NewController(
 	kubeconfig *string,
 	ctx context.Context,
 	clusterclientset edgeclient.Interface,
-	clusterInformer lcclient.LogicalClusterInformer) *Controller {
+	clusterInformer lcinformer.LogicalClusterInformer) *Controller {
 	logger := klog.FromContext(ctx)
 
 	// TODO: We are keeping a hash table of logical cluster provider clients
@@ -78,8 +77,8 @@ func NewController(
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			// Most fields in the logical cluster are immutable with the
 			// exception of the URL and fields in the status.
-			oldInfo := oldObj.(*lcv1alpha1apis.LogicalCluster)
-			newInfo := newObj.(*lcv1alpha1apis.LogicalCluster)
+			oldInfo := oldObj.(*logicalcluster.LogicalCluster)
+			newInfo := newObj.(*logicalcluster.LogicalCluster)
 			if !reflect.DeepEqual(oldInfo.Status, newInfo.Status) {
 				controller.queue.Add(
 					queueItem{
@@ -150,7 +149,7 @@ func (c *Controller) processAdd(ctx context.Context, key any) error {
 	logger := klog.FromContext(ctx)
 	var err error
 
-	newClusterConfig := key.(*lcv1alpha1apis.LogicalCluster)
+	newClusterConfig := key.(*logicalcluster.LogicalCluster)
 	clusterName := newClusterConfig.Spec.ClusterName
 
 	providerInfo, err := c.clusterclientset.LogicalclusterV1alpha1().ClusterProviderDescs().Get(ctx, newClusterConfig.Spec.ClusterProviderDesc, v1.GetOptions{})
@@ -164,7 +163,7 @@ func (c *Controller) processAdd(ctx context.Context, key any) error {
 	provider := clusterproviderclient.GetProviderClient(providerInfo.Spec.ProviderType, newClusterConfig.Spec.ClusterProviderDesc)
 
 	// Update status to NotReady
-	newClusterConfig.Status.Phase = lcv1alpha1apis.LogicalClusterPhaseNotReady
+	newClusterConfig.Status.Phase = logicalcluster.LogicalClusterPhaseNotReady
 	_, err = c.clusterclientset.LogicalclusterV1alpha1().LogicalClusters().Update(ctx, newClusterConfig, v1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "failed to update cluster status.")
@@ -175,7 +174,7 @@ func (c *Controller) processAdd(ctx context.Context, key any) error {
 	var opts cluster.Options
 	//ES: what exactly is this kubeconfig
 	opts.KubeconfigPath = *c.kubeconfig
-	newCluster, err := provider.Create(ctx, logical.Name(clusterName), opts)
+	newCluster, err := provider.Create(ctx, clusterName, opts)
 	if err != nil {
 		logger.Error(err, "failed to create cluster")
 		return err
@@ -184,7 +183,7 @@ func (c *Controller) processAdd(ctx context.Context, key any) error {
 
 	// Update the new cluster's status - specifically the config string and the phase
 	newClusterConfig.Status.ClusterConfig = newCluster.Config
-	newClusterConfig.Status.Phase = lcv1alpha1apis.LogicalClusterPhaseReady
+	newClusterConfig.Status.Phase = logicalcluster.LogicalClusterPhaseReady
 	_, err = c.clusterclientset.LogicalclusterV1alpha1().LogicalClusters().Update(ctx, newClusterConfig, v1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "failed to update cluster status.")
@@ -197,7 +196,7 @@ func (c *Controller) processAdd(ctx context.Context, key any) error {
 func (c *Controller) processUpdate(ctx context.Context, key any) error {
 	logger := klog.FromContext(ctx)
 	var err error
-	clusterConfig := key.(*lcv1alpha1apis.LogicalCluster)
+	clusterConfig := key.(*logicalcluster.LogicalCluster)
 	_, err = c.clusterclientset.LogicalclusterV1alpha1().LogicalClusters().Update(ctx, clusterConfig, v1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "failed to update cluster status.")
@@ -212,7 +211,7 @@ func (c *Controller) processDelete(ctx context.Context, key any) error {
 
 	var opts cluster.Options
 	opts.KubeconfigPath = *c.kubeconfig
-	delClusterConfig := key.(*lcv1alpha1apis.LogicalCluster)
+	delClusterConfig := key.(*logicalcluster.LogicalCluster)
 	clusterName := delClusterConfig.Spec.ClusterName
 
 	providerInfo, err := c.clusterclientset.LogicalclusterV1alpha1().ClusterProviderDescs().Get(ctx, delClusterConfig.Spec.ClusterProviderDesc, v1.GetOptions{})
@@ -222,7 +221,7 @@ func (c *Controller) processDelete(ctx context.Context, key any) error {
 	}
 
 	provider := clusterproviderclient.GetProviderClient(providerInfo.Spec.ProviderType, delClusterConfig.Spec.ClusterProviderDesc)
-	err = provider.Delete(ctx, logical.Name(clusterName), opts)
+	err = provider.Delete(ctx, clusterName, opts)
 	if err != nil {
 		logger.Error(err, "failed to delete cluster")
 		return err
