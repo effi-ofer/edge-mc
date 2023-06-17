@@ -42,6 +42,7 @@ func GetProviderClient(ctx context.Context,
 					var eventLogicalCluster v1alpha1apis.LogicalCluster
 					eventLogicalCluster.Spec.ClusterName = event.Name
 					eventLogicalCluster.Spec.ClusterProviderDesc = providerName
+					eventLogicalCluster.Spec.Managed = false
 					eventLogicalCluster.ObjectMeta.Name = event.Name
 					eventLogicalCluster.Status.Phase = "Initializing"
 					listLogicalClusters, err := clientset.LogicalclusterV1alpha1().LogicalClusters().List(ctx, v1.ListOptions{})
