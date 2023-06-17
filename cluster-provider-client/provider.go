@@ -3,18 +3,23 @@ package clusterproviderclient
 import (
 	"context"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
 
 	clusterprovider "github.com/kcp-dev/edge-mc/cluster-provider-client/cluster"
 	kindprovider "github.com/kcp-dev/edge-mc/cluster-provider-client/kind"
 	v1alpha1apis "github.com/kcp-dev/edge-mc/pkg/apis/logicalcluster/v1alpha1"
+	edgeclient "github.com/kcp-dev/edge-mc/pkg/client/clientset/versioned"
 )
 
 var ProviderList map[string]ProviderClient
 
 // ES: return and error and don't panic, move push to outside the case
-func GetProviderClient(ctx context.Context, providerType v1alpha1apis.ClusterProviderType, providerName string) ProviderClient {
+func GetProviderClient(ctx context.Context,
+	clientset edgeclient.Interface,
+	providerType v1alpha1apis.ClusterProviderType,
+	providerName string) (ProviderClient, error) {
 	logger := klog.FromContext(ctx)
 	key := string(providerType) + "-" + providerName
 	newProvider, exists := ProviderList[key]
@@ -31,16 +36,64 @@ func GetProviderClient(ctx context.Context, providerType v1alpha1apis.ClusterPro
 					if !ok {
 						w.Stop()
 						logger.Info("stopping")
+						// TODO: return an error
+						return
+					}
+					var eventLogicalCluster v1alpha1apis.LogicalCluster
+					eventLogicalCluster.Spec.ClusterName = event.Name
+					eventLogicalCluster.Spec.ClusterProviderDesc = providerName
+					eventLogicalCluster.ObjectMeta.Name = event.Name
+					eventLogicalCluster.Status.Phase = "Initializing"
+					listLogicalClusters, err := clientset.LogicalclusterV1alpha1().LogicalClusters().List(ctx, v1.ListOptions{})
+					if err != nil {
+						logger.Error(err, "")
+						// TODO: how do we handle failure?
 						return
 					}
 					switch event.Type {
 					case watch.Added:
-						logger.Info("watch.added")
+						// TODO: I am currently ignoring the possibility of the logical cluster object already existing
+						var found bool = false
+						for _, logicalCluster := range listLogicalClusters.Items {
+							if logicalCluster.Spec.ClusterName == eventLogicalCluster.Spec.ClusterName &&
+								logicalCluster.Spec.ClusterProviderDesc == eventLogicalCluster.Spec.ClusterProviderDesc {
+								found = true
+								break
+							}
+						}
+						if !found {
+							logger.Info("Creating new LogicalCluster object", eventLogicalCluster.Spec.ClusterName)
+							_, err = clientset.LogicalclusterV1alpha1().LogicalClusters().Create(ctx, &eventLogicalCluster, v1.CreateOptions{})
+							if err != nil {
+								logger.Error(err, "")
+								// TODO: how do we handle failure?
+								return
+							}
+						}
 					case watch.Deleted:
-						logger.Info("watch.deleted")
+						// TODO: I am currently ignoring the possibility of the logical cluster object not existing
+						var nameLogicalClusterObject string = ""
+						for _, logicalCluster := range listLogicalClusters.Items {
+							if logicalCluster.Spec.ClusterName == eventLogicalCluster.Spec.ClusterName &&
+								logicalCluster.Spec.ClusterProviderDesc == eventLogicalCluster.Spec.ClusterProviderDesc {
+								nameLogicalClusterObject = logicalCluster.Name
+								break
+							}
+						}
+						if nameLogicalClusterObject != "" {
+							logger.Info("Deleting LogicalCluster object", nameLogicalClusterObject)
+							err := clientset.LogicalclusterV1alpha1().LogicalClusters().Delete(ctx, nameLogicalClusterObject, v1.DeleteOptions{})
+							if err != nil {
+								logger.Error(err, "")
+								// TODO: how do we handle failure?
+								return
+							}
+						}
+
 					default:
 						// Unknown!
 						logger.Info("unknown event")
+						// TODO return an error or panic?
 					}
 				}
 			}()
@@ -49,7 +102,7 @@ func GetProviderClient(ctx context.Context, providerType v1alpha1apis.ClusterPro
 		}
 	}
 
-	return newProvider
+	return newProvider, nil
 }
 
 // Provider defines methods to retrieve, list, and watch fleet of clusters.

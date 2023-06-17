@@ -160,11 +160,15 @@ func (c *Controller) processAdd(ctx context.Context, key any) error {
 
 	// TODO: we have yet to finalize the fields in the provider,
 	// so likely this one liner will expend in the future.
-	provider := clusterproviderclient.GetProviderClient(ctx, providerInfo.Spec.ProviderType, newClusterConfig.Spec.ClusterProviderDesc)
+	provider, err := clusterproviderclient.GetProviderClient(ctx, c.clusterclientset, providerInfo.Spec.ProviderType, newClusterConfig.Spec.ClusterProviderDesc)
+	if err != nil {
+		logger.Error(err, "")
+		return err
+	}
 
 	// Update status to NotReady
 	newClusterConfig.Status.Phase = logicalcluster.LogicalClusterPhaseNotReady
-	_, err = c.clusterclientset.LogicalclusterV1alpha1().LogicalClusters().Update(ctx, newClusterConfig, v1.UpdateOptions{})
+	newClusterConfig, err = c.clusterclientset.LogicalclusterV1alpha1().LogicalClusters().Update(ctx, newClusterConfig, v1.UpdateOptions{})
 	if err != nil {
 		logger.Error(err, "failed to update cluster status.")
 		return err
@@ -186,7 +190,7 @@ func (c *Controller) processAdd(ctx context.Context, key any) error {
 	newClusterConfig.Status.Phase = logicalcluster.LogicalClusterPhaseReady
 	_, err = c.clusterclientset.LogicalclusterV1alpha1().LogicalClusters().Update(ctx, newClusterConfig, v1.UpdateOptions{})
 	if err != nil {
-		logger.Error(err, "failed to update cluster status.")
+		logger.Error(err, newCluster.Name)
 		return err
 	}
 
@@ -220,7 +224,12 @@ func (c *Controller) processDelete(ctx context.Context, key any) error {
 		return err
 	}
 
-	provider := clusterproviderclient.GetProviderClient(ctx, providerInfo.Spec.ProviderType, delClusterConfig.Spec.ClusterProviderDesc)
+	provider, err := clusterproviderclient.GetProviderClient(ctx, c.clusterclientset, providerInfo.Spec.ProviderType, delClusterConfig.Spec.ClusterProviderDesc)
+	if err != nil {
+		logger.Error(err, "")
+		return err
+	}
+
 	err = provider.Delete(ctx, clusterName, opts)
 	if err != nil {
 		logger.Error(err, "failed to delete cluster")
