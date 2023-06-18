@@ -103,7 +103,7 @@ func (k *KindWatcher) ResultChan() <-chan clusterprovider.WatchEvent {
 			for {
 				select {
 				// TODO replace the 2 with a param at the cluster-provider-client level
-				case <-time.After(20 * time.Second):
+				case <-time.After(5 * time.Second):
 					list, err := k.provider.List()
 					if err != nil {
 						// TODO add logging
@@ -112,14 +112,12 @@ func (k *KindWatcher) ResultChan() <-chan clusterprovider.WatchEvent {
 					}
 					newSetClusters := sets.NewString(list...)
 					// Check for new clusters.
-					count := 0
 					for _, cl := range newSetClusters.Difference(setClusters).UnsortedList() {
-						logger.Info("Detected a new cluster", count)
+						logger.Info("Detected a new cluster")
 						k.ch <- clusterprovider.WatchEvent{
 							Type: watch.Added,
 							Name: cl,
 						}
-						count++
 					}
 					// Check for deleted clusters.
 					for _, cl := range setClusters.Difference(newSetClusters).UnsortedList() {

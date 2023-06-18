@@ -14,11 +14,12 @@ import (
 	edgeclient "github.com/kcp-dev/edge-mc/pkg/client/clientset/versioned"
 	edgeinformers "github.com/kcp-dev/edge-mc/pkg/client/informers/externalversions"
 	clustermanager "github.com/kcp-dev/edge-mc/pkg/logical-cluster-manager"
+	providermanager "github.com/kcp-dev/edge-mc/pkg/provider-manager"
 )
 
 var (
 	resyncPeriod = 4 * time.Second
-	numThreads   = 2
+	numThreads   = 1
 )
 
 const nameLogicalClusterManagerCluster string = "kind-fleet-test1"
@@ -50,10 +51,17 @@ func main() {
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
+	doneCh := ctx.Done()
+
 	clusterInformerFactory := edgeinformers.NewSharedScopedInformerFactory(clusterClientset, resyncPeriod, metav1.NamespaceAll)
 	clusterInformer := clusterInformerFactory.Logicalcluster().V1alpha1().LogicalClusters()
+	clusterInformerFactory.Start(doneCh)
 
-	doneCh := ctx.Done()
+	providerInformerFactory := edgeinformers.NewSharedScopedInformerFactory(clusterClientset, resyncPeriod, metav1.NamespaceAll)
+	providerInformer := providerInformerFactory.Logicalcluster().V1alpha1().ClusterProviderDescs().Informer()
+	providerInformerFactory.Start(doneCh)
+
+	// TODO: clusterInformer is not the same as providerInformer
 	clusterController := clustermanager.NewController(
 		kubeconfig,
 		ctx,
@@ -61,10 +69,21 @@ func main() {
 		clusterInformer,
 	)
 	if err != nil {
-		logger.Error(err, "failed to create controller")
+		logger.Error(err, "failed to create logical cluster controller")
 		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
-	clusterInformerFactory.Start(doneCh)
-	clusterController.Run(numThreads)
+
+	providerController := providermanager.NewController(
+		ctx,
+		clusterClientset,
+		providerInformer,
+	)
+	if err != nil {
+		logger.Error(err, "failed to create provider controller")
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
+	}
+
+	go clusterController.Run(numThreads)
+	providerController.Run(numThreads)
 	logger.Info("Time to stop")
 }
