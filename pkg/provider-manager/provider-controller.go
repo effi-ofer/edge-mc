@@ -154,12 +154,11 @@ func (c *controller) handleAdd(provider interface{}) {
 
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	// Provider descriptions are cluster wide and unique. The uniqueness is
+	// determined by the provider description object name and enforced by
+	// kubernetes.
 	provider, err := clusterproviderclient.GetProviderClient(c.ctx, c.clientset, providerInfo.Spec.ProviderType, providerInfo.Name)
 	if err != nil {
-		// Provider descriptions are cluster wide and unique. The uniqueness is
-		// determined by the provider description object name and enforced by
-		// kubernetes.
-		err := errors.New("provider already exists")
 		runtime.HandleError(err)
 	}
 }
