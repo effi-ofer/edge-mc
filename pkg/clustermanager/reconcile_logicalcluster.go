@@ -20,15 +20,16 @@ import (
 	"errors"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog/v2"
 
 	lcv1alpha1 "github.com/kubestellar/kubestellar/pkg/apis/logicalcluster/v1alpha1"
 	pclient "github.com/kubestellar/kubestellar/pkg/clustermanager/providerclient"
 )
 
 func (c *controller) reconcileLogicalCluster(key string) error {
+	c.logger.V(2).Info("reconcileLogicalCluster")
+	c.logger.V(2).Info(key)
 	clusterObj, exists, err := c.logicalClusterInformer.GetIndexer().GetByKey(key)
-	if err != nil {
+	if err != nil || !exists {
 		return err
 	}
 
@@ -67,35 +68,7 @@ func (c *controller) processAddOrUpdateLC(logicalCluster *lcv1alpha1.LogicalClus
 	if logicalCluster.Status.Phase == "" && logicalCluster.Spec.Managed {
 		// The client created a new logical cluster object and we need to
 		// create the corresponding physical cluster.
-		logger := klog.FromContext(c.context)
-		providerInfo, err := c.clientset.LogicalclusterV1alpha1().ClusterProviderDescs().Get(
-			c.context, logicalCluster.Spec.ClusterProviderDescName, v1.GetOptions{})
-		if err != nil {
-			logger.Error(err, "failed to get the provider resource")
-			return err
-		}
-
-		provider, err := c.GetProvider(providerInfo.Name)
-		if err != nil {
-			logger.Error(err, "failed to get provider client")
-			return err
-		}
-
-		// Update status Initializing
-		logicalCluster.Status.Phase = lcv1alpha1.LogicalClusterPhaseInitializing
-		_, err = c.clientset.
-			LogicalclusterV1alpha1().
-			LogicalClusters(GetNamespace(logicalCluster.Spec.ClusterProviderDescName)).
-			Update(c.context, logicalCluster, v1.UpdateOptions{})
-		if err != nil {
-			logger.Error(err, "failed to update cluster status.")
-			return err
-		}
-
-		// Async call the provider to create the cluster. Once created, discovery
-		// will set the logical cluster in the Ready state.
-		go provider.Create(c.context, logicalCluster.Name, pclient.Options{})
-		return nil
+		return c.createNewLC(logicalCluster)
 	}
 	// case lcv1alpha1.LogicalClusterPhaseInitializing:
 	// A managed cluster is being created by the provider. Need to wait for
@@ -112,15 +85,46 @@ func (c *controller) processAddOrUpdateLC(logicalCluster *lcv1alpha1.LogicalClus
 	return nil
 }
 
+// createNewLC: creates a new managed logical cluster
+func (c *controller) createNewLC(newCluster *lcv1alpha1.LogicalCluster) error {
+	providerInfo, err := c.clientset.LogicalclusterV1alpha1().ClusterProviderDescs().Get(
+		c.context, newCluster.Spec.ClusterProviderDescName, v1.GetOptions{})
+	if err != nil {
+		c.logger.V(2).Error(err, "failed to get the provider resource", newCluster.Name)
+		return err
+	}
+
+	provider, err := c.GetProvider(providerInfo.Name)
+	if err != nil {
+		c.logger.V(2).Error(err, "failed to get the provider resource", newCluster.Name)
+		return err
+	}
+
+	// Update status Initializing
+	newCluster.Status.Phase = lcv1alpha1.LogicalClusterPhaseInitializing
+	_, err = c.clientset.
+		LogicalclusterV1alpha1().
+		LogicalClusters(GetNamespace(newCluster.Spec.ClusterProviderDescName)).
+		Update(c.context, newCluster, v1.UpdateOptions{})
+	if err != nil {
+		c.logger.V(2).Error(err, "failed to update cluster status", newCluster.Name)
+		return err
+	}
+
+	// Async call the provider to create the cluster. Once created, discovery
+	// will set the logical cluster in the Ready state.
+	go provider.Create(c.context, newCluster.Name, pclient.Options{})
+	return nil
+}
+
 // processDeleteLC: process an LC object deleted event
 // If the cluster is managed, then async delete the physical cluster.
 // TODO: add a finalizer to the logical cluster object
 func (c *controller) processDeleteLC(delCluster *lcv1alpha1.LogicalCluster) error {
 	if delCluster.Spec.Managed {
-		logger := klog.FromContext(c.context)
 		provider, err := c.GetProvider(delCluster.Spec.ClusterProviderDescName)
 		if err != nil {
-			logger.Error(err, "failed to get provider client")
+			c.logger.V(2).Error(err, "failed to get provider client", delCluster.Name)
 			return err
 		}
 		go provider.Delete(c.context, delCluster.Name, pclient.Options{})

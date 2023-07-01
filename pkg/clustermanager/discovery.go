@@ -38,6 +38,9 @@ func (c *controller) GetProvider(providerName string) (clusterprovider.ProviderC
 
 	provider, exists := c.providers[providerName]
 	if !exists {
+		logger := klog.FromContext(c.context)
+		logger.Info("provider", "providerName", providerName)
+
 		// If the provider does not exists in the list, then likely the provider object was
 		// recentely added, and the provider is in the process of being added.  Return an
 		// error. The caller, which we expect is the logical cluster reconciler, will requeue
