@@ -31,11 +31,11 @@ func New(cfg string, opts Options) *LogicalClusterInfo {
 // TODO: Overly simplistic and possibly better served as an interface
 type LogicalClusterInfo struct {
 	// the name of the cluster.
-	Name string
+	Name string `json:"Name"`
 
 	// the config as it exists in kubeconfig of the cluster
 	// TODO - figure out which fields in the config we need and keep those only
-	Config string
+	Config string `json:"Config"`
 }
 
 // Options are the possible options that can be configured for a LogicalClusterInfo.

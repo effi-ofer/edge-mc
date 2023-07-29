@@ -22,7 +22,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	lcv1alpha1 "github.com/kubestellar/kubestellar/pkg/apis/logicalcluster/v1alpha1"
-	pclient "github.com/kubestellar/kubestellar/pkg/clustermanager/providerclient"
 )
 
 const finalizerName = "LCFinalizer"
@@ -96,12 +95,6 @@ func (c *controller) processAddOrUpdateLC(logicalCluster *lcv1alpha1.LogicalClus
 			return err
 		}
 
-		providerClient := provider.providerClient
-		if providerClient == nil {
-			c.logger.Error(err, "failed to get provider client")
-			return err
-		}
-
 		// Update status Initializing
 		if !containsFinalizer(logicalCluster, finalizerName) {
 			logicalCluster.ObjectMeta.Finalizers = append(logicalCluster.ObjectMeta.Finalizers, finalizerName)
@@ -118,7 +111,7 @@ func (c *controller) processAddOrUpdateLC(logicalCluster *lcv1alpha1.LogicalClus
 
 		// Async call the provider to create the cluster. Once created, discovery
 		// will set the logical cluster in the Ready state.
-		go providerClient.Create(logicalCluster.Name, pclient.Options{})
+		go provider.Create(logicalCluster.Name)
 		return nil
 	}
 	// case lcv1alpha1.LogicalClusterPhaseInitializing:
@@ -145,11 +138,7 @@ func (c *controller) processDeleteLC(delCluster *lcv1alpha1.LogicalCluster) erro
 			return errors.New("failed to get provider client")
 		}
 
-		client := provider.providerClient
-		if client == nil {
-			return errors.New("failed to get provider client")
-		}
-		go client.Delete(delCluster.Name, pclient.Options{})
+		go provider.Delete(delCluster.Name)
 	}
 	return nil
 }

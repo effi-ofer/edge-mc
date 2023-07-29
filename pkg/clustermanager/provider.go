@@ -17,8 +17,13 @@ limitations under the License.
 package clustermanager
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/go-logr/logr"
@@ -28,7 +33,6 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/klog/v2"
 
-	kindprovider "github.com/kubestellar/kubestellar/clusterprovider/kind"
 	lcv1alpha1apis "github.com/kubestellar/kubestellar/pkg/apis/logicalcluster/v1alpha1"
 	clusterprovider "github.com/kubestellar/kubestellar/pkg/clustermanager/providerclient"
 )
@@ -49,31 +53,104 @@ func lcKeyFunc(ns string, name string) string {
 
 type provider struct {
 	name            string
-	providerClient  clusterprovider.ProviderClient
+	url             string
 	c               *controller
 	providerWatcher clusterprovider.Watcher
 	nameSpace       string
 	discoveryPrefix string
 }
 
-// TODO: this is termporary for stage 1. For stage 2 we expect to have a uniform interface for all informers.
-func newProviderClient(providerName string, providerType lcv1alpha1apis.ClusterProviderType) clusterprovider.ProviderClient {
-	var pClient clusterprovider.ProviderClient = nil
-	switch providerType {
-	case lcv1alpha1apis.KindProviderType:
-		pClient = kindprovider.New(providerName)
-	default:
-		return nil
+func (p *provider) ListClusters() ([]clusterprovider.LogicalClusterInfo, error) {
+	var clusters []clusterprovider.LogicalClusterInfo
+	postUrl := url.URL{
+		Host:   p.url,
+		Path:   "/list_clusters",
+		Scheme: "https",
 	}
-	return pClient
+	resp, err := http.Get(postUrl.String())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(body, &clusters)
+	if err != nil {
+		return nil, err
+	}
+	return clusters, nil
+}
+
+func (p *provider) Get(name string) (*clusterprovider.LogicalClusterInfo, error) {
+	var cluster *clusterprovider.LogicalClusterInfo
+	postUrl := url.URL{
+		Host:   p.url,
+		Path:   "/get/" + name,
+		Scheme: "https",
+	}
+	resp, err := http.Get(postUrl.String())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(body, cluster)
+	if err != nil {
+		return nil, err
+	}
+	return cluster, nil
+}
+
+func (p *provider) Create(name string) error {
+	postUrl := url.URL{
+		Host:   p.url,
+		Path:   "/create",
+		Scheme: "https",
+	}
+	values := map[string]string{"name": name}
+	jsonData, err := json.Marshal(values)
+	if err != nil {
+		return err
+	}
+	resp, err := http.Post(postUrl.String(), "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
+}
+
+func (p *provider) Delete(name string) error {
+	postUrl := url.URL{
+		Host:   p.url,
+		Path:   "/delete",
+		Scheme: "https",
+	}
+	values := map[string]string{"name": name}
+	jsonData, err := json.Marshal(values)
+	if err != nil {
+		return err
+	}
+	resp, err := http.Post(postUrl.String(), "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	return nil
 }
 
 // CreateProvider returns new provider client
-func CreateProvider(c *controller, providerName string, providerType lcv1alpha1apis.ClusterProviderType) (*provider, error) {
+func CreateProvider(c *controller, providerName string) (*provider, error) {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
 	discoveryPrefix := ""
+	url := ""
 
 	_, exists := c.providers[providerName]
 	if exists {
@@ -81,15 +158,12 @@ func CreateProvider(c *controller, providerName string, providerType lcv1alpha1a
 		return nil, err
 	}
 
-	newProviderClient := newProviderClient(providerName, providerType)
-	if newProviderClient == nil {
-		return nil, errors.New("unknown provider type")
-	}
-
 	providerDescObj, found, _ := c.clusterProviderInformer.GetIndexer().GetByKey(lcKeyFunc("", providerName))
+	// TODO: what happens if it's not found??
 	if found {
 		providerDesc, ok := providerDescObj.(*lcv1alpha1apis.ClusterProviderDesc)
 		if ok {
+			url = providerDesc.Spec.URL
 			discoveryPrefix = providerDesc.Spec.ClusterPrefixForDiscovery
 			if discoveryPrefix == "" {
 				discoveryPrefix = "*"
@@ -99,7 +173,7 @@ func CreateProvider(c *controller, providerName string, providerType lcv1alpha1a
 
 	p := &provider{
 		name:            providerName,
-		providerClient:  newProviderClient,
+		url:             url,
 		c:               c,
 		nameSpace:       ProviderNS(providerName),
 		discoveryPrefix: discoveryPrefix,

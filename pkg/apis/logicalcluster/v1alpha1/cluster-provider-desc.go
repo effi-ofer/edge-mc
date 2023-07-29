@@ -20,12 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type ClusterProviderType string
-
-const (
-	KindProviderType ClusterProviderType = "kind"
-)
-
 // ClusterProviderDesc represents a provider.
 //
 // +crd
@@ -53,9 +47,9 @@ type ClusterProviderDesc struct {
 // TODO: We are currently only listing the type and config.
 // There will be additional fields in the future.
 type ClusterProviderDescSpec struct {
-	// ProviderType is the type of the provider of the cluster.
+	// URL is the address of the REST server for the provider
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="cluster is immutable"
-	ProviderType ClusterProviderType `json:"ProviderType"`
+	URL string `json:"URL"`
 
 	// TODO: this should be stored as a secret!
 	// Config is the provider config
