@@ -1,11 +1,11 @@
 apiVersion: space.kubestellar.io/v1alpha1
 kind: Space
 metadata:
-  name: space2
-  namespace: "spaceprovider-default"
+  name: space3
+  namespace: "spaceprovider-noanno"
   annotations: {
     "kubestellar.io/space-path" : "parent"
   }
 spec:
-  SpaceProviderDescName: "default"
+  SpaceProviderDescName: "noanno"
   Managed: true
