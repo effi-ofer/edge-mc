@@ -32,7 +32,6 @@ import (
 
 	edgev1alpha1 "github.com/kubestellar/kubestellar/pkg/apis/edge/v1alpha1"
 	metav1alpha1 "github.com/kubestellar/kubestellar/pkg/apis/meta/v1alpha1"
-	spacev1alpha1 "github.com/kubestellar/kubestellar/pkg/apis/space/v1alpha1"
 )
 
 type GenericClusterInformer interface {
@@ -106,11 +105,6 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=meta.kubestellar.io, Version=V1alpha1
 	case metav1alpha1.SchemeGroupVersion.WithResource("apiresources"):
 		return &genericClusterInformer{resource: resource.GroupResource(), informer: f.Meta().V1alpha1().APIResources().Informer()}, nil
-	// Group=space.kubestellar.io, Version=V1alpha1
-	case spacev1alpha1.SchemeGroupVersion.WithResource("spaceproviderdescs"):
-		return &genericClusterInformer{resource: resource.GroupResource(), informer: f.Space().V1alpha1().SpaceProviderDescs().Informer()}, nil
-	case spacev1alpha1.SchemeGroupVersion.WithResource("spaces"):
-		return &genericClusterInformer{resource: resource.GroupResource(), informer: f.Space().V1alpha1().Spaces().Informer()}, nil
 	}
 
 	return nil, fmt.Errorf("no informer found for %v", resource)
@@ -145,13 +139,6 @@ func (f *sharedScopedInformerFactory) ForResource(resource schema.GroupVersionRe
 	// Group=meta.kubestellar.io, Version=V1alpha1
 	case metav1alpha1.SchemeGroupVersion.WithResource("apiresources"):
 		informer := f.Meta().V1alpha1().APIResources().Informer()
-		return &genericInformer{lister: cache.NewGenericLister(informer.GetIndexer(), resource.GroupResource()), informer: informer}, nil
-	// Group=space.kubestellar.io, Version=V1alpha1
-	case spacev1alpha1.SchemeGroupVersion.WithResource("spaceproviderdescs"):
-		informer := f.Space().V1alpha1().SpaceProviderDescs().Informer()
-		return &genericInformer{lister: cache.NewGenericLister(informer.GetIndexer(), resource.GroupResource()), informer: informer}, nil
-	case spacev1alpha1.SchemeGroupVersion.WithResource("spaces"):
-		informer := f.Space().V1alpha1().Spaces().Informer()
 		return &genericInformer{lister: cache.NewGenericLister(informer.GetIndexer(), resource.GroupResource()), informer: informer}, nil
 	}
 
