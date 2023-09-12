@@ -21,10 +21,9 @@ package v1alpha1
 import (
 	"net/http"
 
-	rest "k8s.io/client-go/rest"
-
 	v1alpha1 "github.com/kubestellar/kubestellar/pkg/apis/meta/v1alpha1"
 	"github.com/kubestellar/kubestellar/pkg/client/clientset/versioned/scheme"
+	rest "k8s.io/client-go/rest"
 )
 
 type MetaV1alpha1Interface interface {
