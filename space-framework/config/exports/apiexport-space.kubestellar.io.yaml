@@ -5,6 +5,6 @@ metadata:
   name: space.kubestellar.io
 spec:
   latestResourceSchemas:
-  - v230912-42dff5c1c.spaceproviderdescs.space.kubestellar.io
-  - v230912-42dff5c1c.spaces.space.kubestellar.io
+  - v230912-788cf62d6.spaceproviderdescs.space.kubestellar.io
+  - v230912-788cf62d6.spaces.space.kubestellar.io
 status: {}
