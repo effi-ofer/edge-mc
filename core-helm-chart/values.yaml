@@ -24,19 +24,12 @@ spaceimage:
   pullPolicy: IfNotPresent
   tag: sp-mgt-pr2
 
-# The namespace used by the space abstraction layer. This is where
-# the space provider object and the applicable secrets are created.
-spaceNamespace: default
-
 # The space framework default provider type.
 # Possible values: [kcp|kubeflex]
 defaultSpaceProviderType: kcp
 
 # Spaces are located within the same cluster as the kubestellar pod.
 inClusterSpaces: true
-
-# Directory where the spaces kubeconfig files are located.
-spaceConfigDirectory: /home/kubestellar/spaces
 
 # Storage size
 storageSize: 8Gi
