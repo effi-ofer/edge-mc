@@ -34,13 +34,15 @@ function wait_kcp_ready() {
 
 function get_kcp_kubeconfig() {
     wait_kcp_ready
+    while [ $(KUBECONFIG=$host_kubeconfig kubectl get secret kubestellar | grep -c -e kubestellar) != "1" ]; do 
+        echo "Waiting for kubestellar secret."
+        sleep 1
+    done
     kcp_kubeconfig_dir=/home/kubestellar/.kcp
     kcp_kubeconfig=${kcp_kubeconfig_dir}/admin.kubeconfig
     echo "Copying the admin.kubeconfig from kubestellar seret..."
     mkdir -p $kcp_kubeconfig_dir
-    (
-        kubectl --kubeconfig $host_kubeconfig get secrets kubestellar -o 'go-template={{index .data "admin.kubeconfig"}}' | base64 --decode > $kcp_kubeconfig
-    )
+    kubectl --kubeconfig $host_kubeconfig get secrets kubestellar -o jsonpath='{.data.admin\.kubeconfig}' | base64 --decode > $kcp_kubeconfig
 }
 
 function create_kcp_provider() {
@@ -49,9 +51,7 @@ function create_kcp_provider() {
     if ! kubectl --kubeconfig $SPACE_MANAGER_KUBECONFIG delete secret -n ${NAMESPACE} kcpsec ; then
         echo "Nothing to delete."
     fi
-    kubectl --kubeconfig $host_kubeconfig get secrets kubestellar -o 'go-template={{index .data "admin.kubeconfig"}}' | base64 --decode > kcpsecret
-    kubectl --kubeconfig $SPACE_MANAGER_KUBECONFIG create secret generic -n ${NAMESPACE} kcpsec --from-file=kubeconfig="kcpsecret"    
-    rm kcpsecret
+    kubectl --kubeconfig $SPACE_MANAGER_KUBECONFIG create secret generic -n ${NAMESPACE} kcpsec --from-file=kubeconfig=$kcp_kubeconfig   
 
     echo "Delete the kcp provider object if it already exists, and then create it."
     if ! kubectl --kubeconfig $SPACE_MANAGER_KUBECONFIG delete spaceproviderdesc $PROVIDER_NAME ; then
@@ -69,6 +69,8 @@ spec:
     namespace: ${NAMESPACE}
     name: kcpsec
 EOF
+    echo "Waiting for default spaceprovider to reach the Ready phase."
+    kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} wait --for=jsonpath='{.status.Phase}'=Ready spaceproviderdesc $PROVIDER_NAME
 }
  
 function create_kubeflex_provider() {
@@ -96,9 +98,7 @@ spec:
     name: corecluster
 EOF
     echo "Waiting for default spaceprovider to reach the Ready phase."
-    until [ "$(kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} get spaceproviderdesc $PROVIDER_NAME -o yaml | grep Ready )" != "" ]; do
-        sleep 1
-    done 
+    kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} wait --for=jsonpath='{.status.Phase}'=Ready spaceproviderdesc $PROVIDER_NAME
 }
 
 
@@ -276,9 +276,9 @@ function run_placement_translator() {
     fi
 }
 
-# get_host_kubeconfig: 
+# set_host_kubeconfig: 
 # The hosting cluster is by default the kubestellar and space core cluster. 
-function get_host_kubeconfig() {
+function set_host_kubeconfig() {
     kubectl --kubeconfig $host_kubeconfig config set-cluster space-mgt --server="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}" --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
     kubectl --kubeconfig $host_kubeconfig config set-credentials space-mgt --token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
     kubectl --kubeconfig $host_kubeconfig config set-context space-mgt --cluster=space-mgt --user=space-mgt
@@ -287,10 +287,10 @@ function get_host_kubeconfig() {
 
 echo "--< Starting KubeStellar container >--"
 
-export KUBECONFIG_DIR="space-config"
+export KUBECONFIG_DIR="${PWD}/space-config"
 mkdir -p $KUBECONFIG_DIR
 host_kubeconfig="${KUBECONFIG_DIR}/config"
-get_host_kubeconfig
+set_host_kubeconfig
 
 echo "Environment variables:"
 if [ $# -ne 0 ] ; then

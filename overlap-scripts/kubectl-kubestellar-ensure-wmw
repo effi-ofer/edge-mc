@@ -138,8 +138,7 @@ set -e
 
 create_space_if_needed_and_get_config ${wmw_name}
 
-# TODO: remove kcp dependency
-KUBECONFIG=/home/kubestellar/.kcp/admin.kubeconfig
+# TODO: remove kcp dependency in PR3
 kubectl ws "${kubectl_flags[@]}" root:"$wmw_name"
 
 if ! kubectl "${kubectl_flags[@]}" get APIBinding bind-espw &> /dev/null; then
