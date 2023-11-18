@@ -69,7 +69,7 @@ spec:
     namespace: ${NAMESPACE}
     name: kcpsec
 EOF
-    echo "Waiting for default spaceprovider to reach the Ready phase."
+    echo "Waiting for spaceprovider to reach the Ready phase."
     kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} wait --for=jsonpath='{.status.Phase}'=Ready spaceproviderdesc $PROVIDER_NAME
 }
  
@@ -97,12 +97,12 @@ spec:
     namespace: ${NAMESPACE}
     name: corecluster
 EOF
-    echo "Waiting for default spaceprovider to reach the Ready phase."
+    echo "Waiting for spaceprovider to reach the Ready phase."
     kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} wait --for=jsonpath='{.status.Phase}'=Ready spaceproviderdesc $PROVIDER_NAME
 }
 
 
-function set_provider_adapters() {
+function create_spaceprovider() {
     echo "Waiting for space manager to be ready... this may take a while."
     (
         until [ "$(kubectl --kubeconfig $host_kubeconfig logs $(kubectl --kubeconfig $host_kubeconfig get pod --selector=app=kubestellar -o jsonpath='{.items[0].metadata.name}') -c space-manager | grep '***READY***')" != "" ]; do
@@ -114,7 +114,7 @@ function set_provider_adapters() {
     elif [ "$SPACE_PROVIDER_TYPE" == "kubeflex" ]; then
         create_kubeflex_provider
     else
-        echo "No valid default space provider."
+        echo "No valid space provider."
     fi
 }
 
@@ -230,7 +230,7 @@ function run_kcp() {
 
 function run_init() {
     echo "--< Starting init >--"
-    set_provider_adapters
+    create_spaceprovider 
     kubestellar init --ensure-imw $ENSURE_IMW --ensure-wmw $ENSURE_WMW 
     touch ready
     echo "***READY***"
@@ -279,10 +279,10 @@ function run_placement_translator() {
 # set_host_kubeconfig: 
 # The hosting cluster is by default the kubestellar and space core cluster. 
 function set_host_kubeconfig() {
-    kubectl --kubeconfig $host_kubeconfig config set-cluster space-mgt --server="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}" --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-    kubectl --kubeconfig $host_kubeconfig config set-credentials space-mgt --token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
-    kubectl --kubeconfig $host_kubeconfig config set-context space-mgt --cluster=space-mgt --user=space-mgt
-    kubectl --kubeconfig $host_kubeconfig config use-context space-mgt
+    kubectl --kubeconfig $host_kubeconfig config set-cluster sm-mgt --server="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}" --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+    kubectl --kubeconfig $host_kubeconfig config set-credentials sm-mgt --token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+    kubectl --kubeconfig $host_kubeconfig config set-context sm-mgt --cluster=sm-mgt --user=sm-mgt
+    kubectl --kubeconfig $host_kubeconfig config use-context sm-mgt
 }
 
 echo "--< Starting KubeStellar container >--"

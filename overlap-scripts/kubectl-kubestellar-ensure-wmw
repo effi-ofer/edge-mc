@@ -19,45 +19,6 @@
 
 # Usage: $0 ($kubectl_flag | --with-kube boolean | -X)* wmw_name
 
-function create_space() { # usage: space_name
-    space_name=$1
-    kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} create -f - <<EOF
-apiVersion: space.kubestellar.io/v1alpha1
-kind: Space
-metadata:
-  name: $space_name
-  namespace: "${PROVIDER_NAMESPACE}"
-spec:
-  SpaceProviderDescName: "${PROVIDER_NAME}"
-  Type: "managed"
-EOF
-    echo "Waiting for space $space_name to get into the Ready phase."
-    until [ "$(kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} get space $space_name -n ${PROVIDER_NAMESPACE} -o yaml | grep Ready)" != "" ]; do
-        sleep 1
-    done
-}
-
-function get_kubeconfig_file() { # usage: space_name provider_namespace
-    space_name="$1"
-    provider_namespace="$2"
-    if [ "$IN_CLUSTER" == "true" ] ; then
-        secret_name=`kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} get space $space_name -n $provider_namespace -o jsonpath='{$.status.inClusterSecretRef.name}'`
-        secret_namespace=`kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} get space $space_name -n $provider_namespace -o jsonpath='{$.status.inClusterSecretRef.namespace}'`
-    else
-        secret_name=`kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} get space $space_name -n $provider_namespace -o jsonpath='{$.status.externalSecretRef.name}'`
-        secret_namespace=`kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} get space $space_name -n $provider_namespace -o jsonpath='{$.status.externalSecretRef.namespace}'`
-    fi
-    kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} get secret $secret_name -n $secret_namespace -o jsonpath='{$.data.kubeconfig}' | base64 -d | base64 -d > ${KUBECONFIG_DIR}/${provider_namespace}-${space_name}
-}
-
-function create_space_if_needed_and_get_config() { # usage: space_name
-    space_name="$1"
-    if kubectl --kubeconfig ${SPACE_MANAGER_KUBECONFIG} get space $space_name -n ${PROVIDER_NAMESPACE} 2>&1 | grep "not found" ; then
-        create_space $space_name
-    fi
-    get_kubeconfig_file $space_name ${PROVIDER_NAMESPACE}
-}
-
 want_kube=true
 wmw_name=""
 
@@ -136,7 +97,7 @@ esac
 
 set -e
 
-create_space_if_needed_and_get_config ${wmw_name}
+kubectl-kubestellar-create-space --space-name $wmw_name --provider-name $PROVIDER_NAME --sm-core-config $SPACE_MANAGER_KUBECONFIG
 
 # TODO: remove kcp dependency in PR3
 kubectl ws "${kubectl_flags[@]}" root:"$wmw_name"
