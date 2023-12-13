@@ -99,8 +99,11 @@ qs_sort: test
           start="<!--debian-kind-docker-start-->"
           end="<!--debian-kind-docker-end-->"
         %}
-    
 
+```shell
+KUBECONFIG=~/.kube/config kubectl config use-context ks-core
+space-framework/hack/install-kubeflex.sh  --kubeconfig ~/.kube/config 
+```
    
 #### 1. Deploy the <span class="Space-Bd-BT">KUBESTELLAR</span> Core component  
 {%
@@ -116,7 +119,7 @@ pwd
 rm -f bin/*
 make userbuild
 export PATH=$PWD/bin:$PATH
-bash -c "$(cat bootstrap/install-kcp-with-plugins.sh)" -V -V --version v0.11.0
+#bash -c "$(cat bootstrap/install-kcp-with-plugins.sh)" -V -V --version v0.11.0
 export PATH=$PWD/kcp/bin:$PATH
 export SM_CONFIG=~/.kube/config
 export SM_CONTEXT=ks-core

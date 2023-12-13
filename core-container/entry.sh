@@ -27,15 +27,6 @@ function echoerr() {
    echo "ERROR: $1" >&2
 }
 
-function wait_kcp_ready() {
-    echo "Waiting for kcp to be ready... this may take a while."
-    (
-        until [ "$(kubectl --kubeconfig $host_kubeconfig logs $(kubectl --kubeconfig $host_kubeconfig get pod --selector=app=kubestellar -o jsonpath='{.items[0].metadata.name}') -c kcp | grep '***READY***')" != "" ]; do
-           sleep 10
-        done
-    )
-}
-
 function get_kcp_kubeconfig() {
     while ! KUBECONFIG=$host_kubeconfig kubectl get secret kubestellar; do
         echo "Waiting for kubestellar secret."
@@ -242,7 +233,6 @@ function run_init() {
 function run_mailbox_controller() {
     echo "--< Starting mailbox-controller >--"
     wait-kubestellar-ready
-    get_kcp_kubeconfig
     KUBECONFIG=$SM_CONFIG
     if ! mailbox-controller -v=${VERBOSITY} ; then
         echoerr "unable to start mailbox-controller!"
@@ -253,7 +243,6 @@ function run_mailbox_controller() {
 function run_where_resolver() {
     echo "--< Starting where-resolver >--"
     wait-kubestellar-ready
-    get_kcp_kubeconfig
     KUBECONFIG=$SM_CONFIG
     if ! kubestellar-where-resolver -v ${VERBOSITY} ; then
         echoerr "unable to start kubestellar-where-resolver!"
@@ -264,7 +253,6 @@ function run_where_resolver() {
 function run_placement_translator() {
     echo "--< Starting placement-translator >--"
     wait-kubestellar-ready
-    get_kcp_kubeconfig
     KUBECONFIG=$SM_CONFIG
     if ! placement-translator -v=${VERBOSITY} ; then
         echoerr "unable to start mailbox-controller!"
