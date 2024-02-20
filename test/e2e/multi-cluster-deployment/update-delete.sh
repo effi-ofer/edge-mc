@@ -32,11 +32,11 @@ source "${COMMON_SRCS}/setup-shell.sh"
 : objects are properly updated 
 :
 kubectl --context imbs1 label managedcluster cluster2 location-group=blah name=cluster2 --overwrite
-wait-for-cmd '(($(kubectl --context cluster1 get ns nginx | wc -l) == 1))'
+wait-for-cmd '(($(kubectl --context cluster1 get ns nginx | wc -l) == 2))'
 wait-for-cmd '(($(kubectl --context cluster2 get ns nginx | wc -l) == 0))'
 kubectl --context imbs1 label managedcluster cluster2 location-group=edge name=cluster2 --overwrite
-wait-for-cmd '(($(kubectl --context cluster1 get ns nginx | wc -l) == 1))'
-wait-for-cmd '(($(kubectl --context cluster2 get ns nginx | wc -l) == 1))'
+wait-for-cmd '(($(kubectl --context cluster1 get ns nginx | wc -l) == 2))'
+wait-for-cmd '(($(kubectl --context cluster2 get ns nginx | wc -l) == 2))'
 :
 : Test passed
 
