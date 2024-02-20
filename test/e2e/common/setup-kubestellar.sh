@@ -71,7 +71,8 @@ echo "wds1 created."
 :
 cd "${SRC_DIR}/../../.." ## go up to KubeStellar directory
 KUBESTELLAR_DIR="$(pwd)"
-cd ${OCM_TRANSPORT_PLUGIN_DIR}
+cd "$OCM_TRANSPORT_PLUGIN_DIR"
+pwd
 echo "replace github.com/kubestellar/kubestellar => ${KUBESTELLAR_DIR}/" >> go.mod
 make build
 ./bin/ocm-transport-plugin --transport-context imbs1 --wds-context wds1 --wds-name wds1 >/dev/null &
