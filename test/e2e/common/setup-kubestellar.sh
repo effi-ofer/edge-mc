@@ -67,6 +67,22 @@ echo "wds1 created."
 
 :
 : -------------------------------------------------------------------------
+: Run OCM transport controller executable
+:
+cd "${SRC_DIR}/../../.." ## go up to KubeStellar directory
+KUBESTELLAR_DIR="$(pwd)"
+cd ocm-transport-plugin-0.1.0-rc1
+echo "replace github.com/kubestellar/kubestellar => ${KUBESTELLAR_DIR}/" >> go.mod
+make build
+./bin/ocm-transport-plugin --transport-context imbs1 --wds-context wds1 --wds-name wds1 >/dev/null &
+
+cd "${KUBESTELLAR_DIR}"
+pwd
+cd -
+echo "transport controller is running as background process."
+
+:
+: -------------------------------------------------------------------------
 : Create clusters and register with OCM
 :
 function create_cluster() {
