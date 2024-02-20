@@ -46,7 +46,7 @@ jobs:
       - name: Run test
         run: |
           cd test/e2e/multi-cluster-deployment 
-          KFLEX_DISABLE_CHATTY=true ./run-test.sh 
+          KFLEX_DISABLE_CHATTY=true OCM_TRANSPORT_PLUGIN_DIR=ocm-transport-plugin-0.1.0-rc1 ./run-test.sh 
 
       - name: show kubeconfig contexts
         if: always()
