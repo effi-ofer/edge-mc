@@ -139,14 +139,6 @@ spec:
 EOF
 ```
 
-Verify that *manifestworks* wrapping the objects have been created in the mailbox
-namespaces:
-
-```shell
-kubectl --context imbs1 get manifestworks -n cluster1
-kubectl --context imbs1 get manifestworks -n cluster2
-```
-
 Verify that the deployment has been created in both clusters
 
 ```shell
