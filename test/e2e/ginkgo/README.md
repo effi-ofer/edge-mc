@@ -14,7 +14,7 @@ The end to end testing includes:
 1. Object cleaning for services
 1. Resiliency testing - killing kubestellar manager on the WDS
 1. Resiliency testing - killing kubeflex
-1. Resiliency testing - killing both kubestellar and kubeflex
+1. Resiliency testing - killing both kubestellar as well as kubeflex
 
 ## Running the tests
 To install Ginkgo, follow the instructions in [Ginkgo's getting started](https://onsi.github.io/ginkgo/#getting-started).
