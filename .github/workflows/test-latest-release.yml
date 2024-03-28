@@ -2,7 +2,7 @@ name: Test latest release
 
 on:
   workflow_call:
-  # So we can trigger manually if needed
+  # So we can trigger manually if needed 
   workflow_dispatch:
   push:
     branches:
