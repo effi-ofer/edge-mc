@@ -43,7 +43,7 @@ nav:
           - Setting up KubeStellar:
               - Using existing hosting cluster: direct/hosting-cluster.md
               - KubeStellar on KIND: direct/ks-on-kind.md
-              - KubeStellar on K3D: direct/ks-on-k3d.md
+              - KubeStellar on K3D: direct/deploy-on-k3d.md
               - KubeStellar on OCP: direct/ks-on-ocp.md
           - Examples: direct/examples.md
   - Contributing: 
@@ -55,6 +55,7 @@ nav:
       - License: Contribution guidelines/LICENSE.md
       - Governance: Contribution guidelines/governance.md
       - Onboarding: Contribution guidelines/onboarding.md
+      - Website: Contribution guidelines/operations/document-management.md
       - Security: 
           - Policy: Contribution guidelines/security/security.md
           - Contacts: Contribution guidelines/security/security_contacts.md

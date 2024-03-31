@@ -41,8 +41,11 @@ jobs:
           go install github.com/onsi/ginkgo/v2/ginkgo
 
       - name: Run test
+<<<<<<< HEAD
         env:
           TEST_FLAGS: ${{ github.event.inputs.testFlags }}
+=======
+>>>>>>> 930fdcd9dbfb559941286703df1e824f93b6b990
         run: |
           cd test/e2e/ginkgo 
           KFLEX_DISABLE_CHATTY=true ginkgo -vv --trace --no-color -- -released
@@ -117,8 +120,11 @@ jobs:
           rm -fr bin kubeflex_0.4.2_linux_amd64.tar.gz
 
       - name: Run test
+<<<<<<< HEAD
         env:
           TEST_FLAGS: ${{ github.event.inputs.testFlags }}
+=======
+>>>>>>> 930fdcd9dbfb559941286703df1e824f93b6b990
         run: |
           cd test/e2e/multi-cluster-deployment 
           KFLEX_DISABLE_CHATTY=true ./run-test.sh --released
@@ -165,4 +171,8 @@ jobs:
 
       - name: show workstatuses
         if: always()
+<<<<<<< HEAD
         run: kubectl --context imbs1 get workstatuses -A -o yaml
+=======
+        run: kubectl --context imbs1 get workstatuses -A -o yaml
+>>>>>>> 930fdcd9dbfb559941286703df1e824f93b6b990
