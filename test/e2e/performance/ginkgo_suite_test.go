@@ -58,12 +58,12 @@ func init() {
 }
 
 var _ = ginkgo.BeforeSuite(func() {
+	ctx = context.Background()
 	if !skipSetupFlag {
-		util.Cleanup()
-		util.SetupKubestellar(releasedFlag)
+		util.Cleanup(ctx)
+		util.SetupKubestellar(ctx, releasedFlag)
 	}
 
-	ctx = context.Background()
 	configCore := util.GetConfig("kind-kubeflex")
 	configWds := util.GetConfig("wds1")
 	configITS := util.GetConfig("imbs1")
